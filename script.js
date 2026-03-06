@@ -3,7 +3,7 @@
 const businessName = "Success Computer Institute";
 
 const googleReviewLink =
-"https://g.page/r/CeJ_x5rd31VLEBM/review";
+"https://g.page/r/CUBQP7ARgyFREBM/review";
 
 
 // ===== REVIEW TEMPLATES =====
@@ -203,3 +203,4 @@ function postReview(text) {
 
 buildPool();
 loadMore();
+
