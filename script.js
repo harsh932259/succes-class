@@ -1,3 +1,10 @@
+// ===== BUSINESS SETTINGS =====
+const businessName = "Success Computer Institute";
+const googleReviewLink = "https://g.page/r/CUBQP7ARgyFREBM/review";
+
+// YOUR GOOGLE WEB APP URL
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwY1oliKu0BJzS12VL0SI2V_ZPrkpKMa6d3M6BBuevgtATsMZJPWT0Y0S_y_XGlnEjIbg/exec"; 
+
 // ===== REVIEW TEMPLATES (HUMAN & CASUAL TONE) =====
 const templates = {
   // ---------- ENGLISH ----------
@@ -120,3 +127,115 @@ const templates = {
     ]
   }
 };
+
+// ===== APP STATE =====
+let currentLang = "en";
+let shownCount = 0;
+const batchSize = 10;
+let generatedReviews = [];
+let usedReviewsFromServer = []; 
+
+// ===== HELPERS =====
+function randomItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function createReview(lang) {
+  const t = templates[lang];
+  const intro = randomItem(t.intro).replace("[BIZ]", businessName);
+  return `${intro} ${randomItem(t.middle)} ${randomItem(t.ending)}`;
+}
+
+// ===== INIT APP & CONNECT TO DB =====
+async function initApp() {
+  document.getElementById("reviews").innerHTML = "<p style='text-align:center; color: gray;'>Loading fresh reviews...</p>";
+  document.getElementById("loadMoreBtn").style.display = "none";
+  
+  try {
+    const response = await fetch(WEB_APP_URL);
+    usedReviewsFromServer = await response.json();
+  } catch (error) {
+    console.error("Could not connect to database. Starting fresh.", error);
+    usedReviewsFromServer = [];
+  }
+  
+  setLanguage('en'); 
+}
+
+// ===== BUILD SAFE REVIEWS & FAILSAFE =====
+function buildPool() {
+  generatedReviews = [];
+  const used = new Set();
+  let safetyCounter = 0; 
+
+  while (used.size < 30 && safetyCounter < 3000) {
+    safetyCounter++;
+    const newReview = createReview(currentLang);
+    if (!usedReviewsFromServer.includes(newReview) && !used.has(newReview)) {
+      used.add(newReview);
+    }
+  }
+
+  generatedReviews = [...used];
+  shownCount = 0;
+
+  // The Failsafe: If all 1000 combinations are used in this language
+  if (generatedReviews.length === 0) {
+    document.getElementById("reviews").innerHTML = `
+      <div style="text-align:center; padding: 30px 10px;">
+        <h3 style="margin-bottom:10px;">🎉 Thank You!</h3>
+        <p style="color:gray;">We have received an overwhelming amount of support. All available unique reviews in this language have been posted.</p>
+      </div>`;
+    document.getElementById("loadMoreBtn").style.display = "none";
+    return false; // Tells the app to stop loading
+  }
+  return true; 
+}
+
+// ===== LOAD MORE =====
+function loadMore() {
+  const box = document.getElementById("reviews");
+
+  for (let i = 0; i < batchSize; i++) {
+    if (shownCount >= generatedReviews.length) {
+      document.getElementById("loadMoreBtn").style.display = "none";
+      return;
+    }
+
+    const review = generatedReviews[shownCount];
+    shownCount++;
+
+    const card = document.createElement("div");
+    card.className = "review-card";
+
+    const text = document.createElement("p");
+    text.textContent = review;
+
+    const btn = document.createElement("button");
+    btn.textContent = "Post Review";
+    btn.className = "post-btn";
+    btn.onclick = () => postReview(review);
+
+    card.appendChild(text);
+    card.appendChild(btn);
+    box.appendChild(card);
+  }
+}
+
+// ===== LANGUAGE SWITCH =====
+function setLanguage(lang) {
+  currentLang = lang;
+  document.getElementById("reviews").innerHTML = "";
+  document.getElementById("loadMoreBtn").style.display = "block";
+  
+  const poolBuilt = buildPool();
+  if (poolBuilt) { loadMore(); }
+}
+
+// ===== COPY + OPEN GOOGLE + SAVE TO DB =====
+function postReview(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    window.open(googleReviewLink, "_blank");
+    alert("Review copied 👍 Paste it on Google and press POST.");
+
+    fetch(WEB_APP_URL, {
+      method: 'POST',
+      mode: '
