@@ -144,19 +144,26 @@ function createReview(lang) {
   return `${intro} ${randomItem(t.middle)} ${randomItem(t.ending)}`;
 }
 
-// ===== INIT APP & CONNECT TO DB =====
+// ===== INIT APP & CONNECT TO DB (BULLETPROOF VERSION) =====
 async function initApp() {
-  document.getElementById("reviews").innerHTML = "<p style='text-align:center; color: gray;'>Loading fresh reviews...</p>";
+  const reviewsBox = document.getElementById("reviews");
+  if (reviewsBox) reviewsBox.innerHTML = "<p style='text-align:center; color: gray;'>Loading fresh reviews...</p>";
   document.getElementById("loadMoreBtn").style.display = "none";
   
   try {
     const response = await fetch(WEB_APP_URL);
-    usedReviewsFromServer = await response.json();
+    const data = await response.json();
+    
+    // SAFETY CHECK: Make absolutely sure the database gave us an Array list. 
+    // If it gave us an error message instead, force it to be an empty list so the app doesn't crash.
+    usedReviewsFromServer = Array.isArray(data) ? data : [];
+    
   } catch (error) {
-    console.error("Could not connect to database. Starting fresh.", error);
+    console.error("Database connection failed. Loading offline mode.", error);
     usedReviewsFromServer = [];
   }
   
+  // Force the app to start and load the reviews no matter what happened above
   setLanguage('en'); 
 }
 
@@ -238,4 +245,13 @@ function postReview(text) {
 
     fetch(WEB_APP_URL, {
       method: 'POST',
-      mode: '
+      mode: 'no-cors',
+      body: JSON.stringify({ review: text })
+    });
+
+    usedReviewsFromServer.push(text);
+  });
+}
+
+// ===== START THE ENGINE =====
+initApp();
